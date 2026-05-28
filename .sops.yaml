@@ -1,0 +1,6 @@
+# .sops.yaml — controls how secrets/*.enc.yaml are encrypted/decrypted.
+# The age1mmy6us9z7attywd46t53f40dxf0e6wa7wswjurqged7ugyw9x4nq520kwd placeholder is replaced by new-client.sh at scaffold time
+# with the public key from ~/.config/sops/age/keys.txt on the MSI server.
+creation_rules:
+  - path_regex: secrets/.*\.enc\.yaml$
+    age: "age1mmy6us9z7attywd46t53f40dxf0e6wa7wswjurqged7ugyw9x4nq520kwd"
