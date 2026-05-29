@@ -7,6 +7,8 @@
 - Un atelier de service après-vente (SAV) avec des techniciens
 - Des commerciaux nomades intervenant en itinérance chez les clients
 
+L'entreprise est **multisite** : elle dispose d'un entrepôt avec des collaborateurs présents en **France et en Allemagne**. Les postes de travail sont des **ordinateurs de bureau fixes** (pas de BYOD, pas de mobilité interne) et la téléphonie repose sur des **téléphones fixes filaires** sur site.
+
 L'entreprise ne dispose plus d'équipe IT interne depuis le départ de son dernier responsable informatique. La gestion de l'infrastructure repose actuellement sur des interventions ponctuelles d'un prestataire externe.
 
 ---
@@ -20,10 +22,13 @@ L'entreprise ne dispose plus d'équipe IT interne depuis le départ de son derni
 | Serveur physique | 1 machine Dell PowerEdge (2012), processeur Intel Xeon E5-2600 v1, 32 GB RAM |
 | Système d'exploitation | Windows Server 2012 R2 (fin de support Microsoft depuis octobre 2023) |
 | Rôles hébergés | Active Directory Domain Services (ADDS), DNS, DHCP, partages fichiers (SMB), ERP web (IIS) |
-| Stockage | Disques SAS internes, RAID 5 dégradé (une panne antérieure non remplacée) |
+| Stockage | Disques SAS internes, RAID 5 dégradé (une panne antérieure non remplacée) — capacité **10 TB**, serveur âgé de **plus de 15 ans** |
 | Réseau | Réseau plat, sans segmentation VLAN, switch non manageable |
 | Sauvegarde | Aucune politique formelle ; seul un disque USB branché manuellement de façon irrégulière |
 | Accès distant | VPN PPTP héritée, connexion directe RDP exposée sur internet pour certains postes |
+| Alimentation secourue | **UPS en place** (existant — point positif pour la continuité) |
+| Accès ERP | Accès pour tous, **aucun VPN configuré** — risque de sécurité |
+| Partage de fichiers | Via le navigateur de fichiers intégré à l'ERP — pas de serveur de fichiers dédié actuellement |
 | Supervision | Aucune surveillance automatisée des services ou de la disponibilité |
 
 ### Points de défaillance critiques identifiés
@@ -34,11 +39,14 @@ L'entreprise ne dispose plus d'équipe IT interne depuis le départ de son derni
 4. **Absence de sauvegarde fiable** : le disque USB manuel ne garantit ni la fréquence ni l'intégrité des données.
 5. **Réseau plat** : aucune isolation entre les postes bureautiques, l'atelier SAV et les serveurs.
 6. **Accès nomades non sécurisés** : PPTP est considéré comme non sûr depuis 2012 ; RDP exposé = surface d'attaque ransomware.
+7. **Aucun VPN pour l'accès ERP** : l'ERP est accessible à tous sans VPN — exposition directe des données métier.
+8. **Sécurité : terra incognita** : le client n'a aucune politique de sécurité connue et déclare « je ne sais pas » sur l'état de la sécurité.
 
 ### Incident déclencheur
 
-Une panne du serveur unique a provoqué **48 heures d'indisponibilité totale** en 2025 :
+En 2025, **l'ERP on-premise a perdu sa connexion internet**, provoquant **48 heures d'indisponibilité totale** :
 - Arrêt complet de l'ERP → aucune commande, aucune expédition possible
+- **30 collaborateurs en télétravail** dans l'impossibilité de se connecter
 - Impossibilité d'accéder aux partages fichiers (bons de livraison, fiches techniques)
 - Commerciaux bloqués sans accès aux données clients
 - Perte estimée : chiffre d'affaires de deux journées complètes + impact image client
@@ -58,7 +66,7 @@ La direction d'AIRSOLID a formulé les exigences suivantes, par ordre de priorit
 
 ### Priorité 2 — Modernisation et pérennité
 - Migrer vers des systèmes d'exploitation supportés (Windows Server 2022 ou 2025)
-- Capitaliser sur le déploiement **Microsoft 365** en cours (synchronisation des identités, accès cloud)
+- Capitaliser sur le déploiement **Microsoft 365** en cours (synchronisation des identités, accès cloud) — taux d'adoption actuellement **inférieur à 60 %** ; des adresses Gmail restent utilisées en parallèle de M365
 - Prévoir l'intégration du **dépôt secondaire** ouverture sous 12 mois
 
 ### Priorité 3 — Sécurisation des flux EDI et des accès nomades
@@ -83,19 +91,25 @@ La direction d'AIRSOLID a formulé les exigences suivantes, par ordre de priorit
 | **Postes hétérogènes** | Mix Windows 10/11 bureaux + postes atelier sous Windows (potentiellement anciens) |
 | **Bande passante limitée** | Connexion internet standard (fibre 1 Gb/500 Mb) ; cloud hybride à dimensionner |
 | **Continuité pendant migration** | Pas d'interruption acceptable pendant les heures ouvrées (L-V 8h-18h) |
+| **Présence multisite** | Entrepôt avec collaborateurs en France et en Allemagne — architecture à prévoir pour les deux sites |
+| **Postes fixes uniquement** | Ordinateurs de bureau sur site, téléphonie fixe — pas de BYOD, pas de mobilité interne |
 
 ---
 
 ## 1.5 Contraintes budgétaires
 
-Le budget n'a pas été formellement chiffré par la direction, mais les contraintes implicites sont :
+**Contexte financier** : chiffre d'affaires estimé à **10–15 M€**, ce qui place AIRSOLID dans la catégorie PME avec des contraintes d'investissement IT significatives.
 
-- **Investissement matériel** : acceptable si justifié par la continuité d'activité (CAPEX limité à 2 serveurs)
+Le client a confirmé l'**absence de budget dédié** à l'informatique. La direction demande **2 à 3 devis** comparatifs avant toute décision. La contrainte budgétaire est réelle : la proposition doit être économique et justifiée.
+
+Les orientations implicites restent :
 - **Licences logicielles** : préférence pour les solutions open-source ou incluses dans les licences Microsoft déjà acquises
 - **Coût d'exploitation** : OPEX mensuel maîtrisé (pas de solution full-cloud à coût variable imprévisible)
 - **Prestataire unique** : externalisation de la gestion à un seul prestataire pour simplifier la responsabilité
 
-### Estimation budgétaire prévisionnelle
+### Ordres de grandeur budgétaires (à présenter dans les devis)
+
+Les estimations ci-dessous constituent des fourchettes indicatives à soumettre dans le cadre des 2 à 3 devis comparatifs demandés par la direction. Elles ne constituent pas un budget validé.
 
 | Poste | Estimation (HT) |
 |---|---|
@@ -105,9 +119,9 @@ Le budget n'a pas été formellement chiffré par la direction, mais les contrai
 | Licences Windows Server CAL (80 users) | 2 000 – 3 000 € |
 | Prestations migration + configuration | 5 000 – 8 000 € |
 | Abonnement Azure Backup (stockage 1 TB/an) | ~600 €/an |
-| **Total CAPEX estimé** | **~22 000 – 34 000 €** |
+| **Total CAPEX indicatif** | **~22 000 – 34 000 €** |
 
-> Ce budget est à comparer à une perte de chiffre d'affaires de 2 jours (estimée à plusieurs dizaines de milliers d'euros pour une PME de 80 personnes) et au risque d'une perte définitive de données sans sauvegarde.
+> Ces montants sont à mettre en regard de la perte de chiffre d'affaires de 2 jours (estimée à plusieurs dizaines de milliers d'euros) et du risque de perte définitive de données sans sauvegarde. Ils seront affinés et présentés sous forme de devis comparatifs.
 
 ---
 
@@ -121,5 +135,7 @@ OS hors support     → Vulnérable  → Migration WS 2022
 Pas de sauvegarde   → Perte data  → 3-2-1 automatisé + testé
 Réseau plat         → Exposition  → VLANs + pare-feu
 VPN PPTP obsolète   → Non sécurisé→ WireGuard ou OpenVPN
+Pas de VPN ERP      → Accès non sécurisé → VPN WireGuard pour télétravailleurs
+EDI non défini      → Flux à risque      → Proposition AS2/SFTP à soumettre
 Aucune supervision  → Panne non détectée → Monitoring 24/7
 ```

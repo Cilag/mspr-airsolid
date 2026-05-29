@@ -257,6 +257,8 @@ Services supervisés :
 
 ## 3.5 Configuration VPN WireGuard (nomades)
 
+L'entretien 1 a confirmé **30 collaborateurs en télétravail** nécessitant un accès VPN. Chaque utilisateur reçoit un fichier de configuration WireGuard individuel.
+
 ```bash
 # Sur OPNsense : plugin os-wireguard
 # Clé serveur générée depuis l'interface OPNsense → VPN → WireGuard
@@ -292,3 +294,13 @@ Les commerciaux nomades accèdent à l'ERP et aux fichiers via le tunnel WireGua
 **Durée totale estimée** : 5 à 6 semaines (interventions hors heures ouvrées pour les phases critiques)
 
 **Rollback** : l'ancien serveur reste opérationnel en parallèle jusqu'à la validation complète de la Phase 5.
+
+---
+
+## 3.7 Continuité d'activité — UPS existant
+
+Le client dispose déjà d'une **alimentation secourue (UPS)** en place. Ce point est positif pour le plan de continuité :
+- L'UPS existant doit être audité (autonomie, état des batteries) avant la migration
+- Il protège le matériel existant pendant la phase de transition
+- Dans l'architecture cible, les deux serveurs Proxmox doivent être raccordés à l'UPS (ou à deux UPS distincts pour redondance)
+- Recommandation : UPS avec supervision SNMP (compatible avec VM-MON / Netdata)
