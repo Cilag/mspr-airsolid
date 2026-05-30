@@ -2,12 +2,13 @@
 
 ## 2.1 Principes directeurs
 
-L'architecture retenue repose sur quatre axes :
+L'architecture retenue repose sur cinq axes :
 
 1. **Élimination du SPOF** — deux serveurs physiques avec réplication automatique des VMs
 2. **Virtualisation type 1** — Proxmox VE sur bare-metal, isolation des services en VMs dédiées
 3. **Hybride maîtrisé** — Active Directory on-premise, messagerie et collaboration via Microsoft 365
 4. **Défense en profondeur** — segmentation VLAN, pare-feu, VPN modernes, sauvegardes hors site
+5. **Budget maîtrisé** — options économiques priorisées (Proxmox open-source, réutilisation du matériel existant si possible) ; 2 à 3 devis comparatifs à présenter
 
 ---
 
@@ -74,6 +75,8 @@ flowchart TD
 
 > Les deux serveurs forment un **cluster Proxmox VE** en mode HA (High Availability). En cas de panne du nœud primaire, les VMs basculent automatiquement sur le secondaire en moins de 5 minutes.
 
+> **Option budget contraint** : si le serveur existant (10 TB, 15+ ans) est encore fonctionnel après audit, il peut être utilisé comme nœud secondaire (PBS / réplication) en attendant son remplacement, permettant de réduire le CAPEX initial. Audit préalable obligatoire (SMART, benchmarks, alimentation).
+
 ### 2.3.2 Machines virtuelles
 
 | VM | OS | vCPU | RAM | Stockage | Rôle |
@@ -114,7 +117,11 @@ flowchart LR
 | **VLAN 30** | 10.0.30.0/24 | Atelier SAV | ERP (443), Fichiers (445/139), AD — isolé de VLAN 20 |
 | **VLAN 99** | 10.0.99.0/24 | Management Proxmox | SSH (22), HTTPS Proxmox (8006) — IP whitelist uniquement |
 
+> **VPN pour 30 télétravailleurs** : 30 collaborateurs en télétravail ont été identifiés lors de l'entretien 1. Le VPN WireGuard est dimensionné pour accueillir ces 30 utilisateurs simultanés. Chaque pair dispose d'un certificat et d'un fichier de configuration individuels générés par le script de provisioning.
+
 ### 2.3.4 Flux EDI
+
+Le client n'a pas de flux EDI existants définis. La proposition ci-dessous constitue une **architecture EDI de départ légère**, à valider avec l'éditeur ERP et les partenaires logistiques.
 
 ```mermaid
 sequenceDiagram
@@ -205,3 +212,5 @@ L'architecture est conçue pour absorber le second dépôt prévu dans 12 mois :
 - Réplication PBS inter-sites pour les VMs critiques
 - Extension du VPN site-à-site (WireGuard) entre les deux dépôts
 - Active Directory Sites and Services configuré pour routing LDAP optimal
+
+> **Extension Allemagne (site secondaire)** : la présence de collaborateurs en Allemagne nécessitera, à terme, soit un VPN site-à-site permanent (WireGuard inter-sites), soit un nœud Proxmox délocalisé sur le site allemand répliquant les VMs critiques. Cette évolution est intégrée dans la feuille de route à 12-24 mois.
