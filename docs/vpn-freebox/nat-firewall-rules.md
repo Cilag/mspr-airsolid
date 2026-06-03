@@ -12,7 +12,7 @@ Le serveur WireGuard FreeboxOS gère automatiquement la règle NAT WAN→Freebox
 
 ## Règles de filtrage VPN → Serveur MSI
 
-Une fois connecté au VPN, l'accès au serveur MSI (IP : `192.168.1.50`) doit être autorisé pour les services suivants :
+Une fois connecté au VPN, l'accès au serveur MSI (IP : `192.168.1.16`) doit être autorisé pour les services suivants :
 
 | Service | Port | Protocole |
 |---|---|---|

@@ -35,11 +35,11 @@ Demander au responsable réseau (ou se connecter à FreeboxOS) :
 
 | Accès | Commande / Application |
 |---|---|
-| Bureau à distance | Ouvrir **Connexion Bureau à distance** → `192.168.1.50` |
-| Ping de test | `ping 192.168.1.50` dans un terminal |
-| Partage réseau | `\\192.168.1.50\` dans l'Explorateur Windows |
+| Bureau à distance | Ouvrir **Connexion Bureau à distance** → `192.168.1.16` |
+| Ping de test | `ping 192.168.1.16` dans un terminal |
+| Partage réseau | `\\192.168.1.16\` dans l'Explorateur Windows |
 
-> ⚠️ **IP à confirmer** : l'IP `192.168.1.50` est supposée. Vérifier avec l'administrateur si la connexion échoue.
+> ⚠️ **IP à confirmer** : l'IP `192.168.1.16` est supposée. Vérifier avec l'administrateur si la connexion échoue.
 
 ### 5. Se déconnecter
 
@@ -49,7 +49,7 @@ Cliquer **Deactivate** dans WireGuard for Windows.
 
 | Hôte | IP | Services |
 |---|---|---|
-| Serveur MSI | `192.168.1.50` (à confirmer) | RDP (3389), SMB (445), SSH (22) |
+| Serveur MSI | `192.168.1.16` | RDP (3389), SMB (445), SSH (22) |
 | Freebox / Gateway | `192.168.1.1` | FreeboxOS (admin) |
 
 ## Dépannage rapide

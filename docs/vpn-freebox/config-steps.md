@@ -4,7 +4,7 @@
 
 - Accès admin FreeboxOS (http://mafreebox.freebox.fr)
 - WireGuard for Windows installé sur le client (déjà fait ✓)
-- IP locale du serveur MSI (à confirmer — supposée `192.168.1.50`)
+- IP locale du serveur MSI (confirmée : `192.168.1.16`)
 
 ## Paramètres serveur (déjà configurés)
 
@@ -55,12 +55,12 @@
 ### Depuis un réseau externe (partage 4G ou autre réseau)
 
 ```
-ping 192.168.1.50
+ping 192.168.1.16
 ```
 
 Accès RDP (Bureau à distance) :
 ```
-mstsc /v:192.168.1.50
+mstsc /v:192.168.1.16
 ```
 
 Résultat attendu : ping répond, Bureau à distance se connecte.
