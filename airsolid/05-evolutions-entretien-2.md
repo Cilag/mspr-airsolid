@@ -52,6 +52,7 @@ L'ouverture du dépôt secondaire prévue dans 12 mois nécessite :
 - Automatisation du déploiement des VMs via **Terraform + provider Proxmox**
 - Templates de VMs standard (Cloud-Init) pour déploiement rapide
 - **Objectif** : nouveau service déployé en < 30 minutes au lieu de 2 jours
+- **PoC validé** : cycle Terraform complet (init → plan → apply → idempotence → destroy) exécuté sur Proxmox VE 9.2.3 avec `bpg/proxmox v0.109.0` — 3 VMs (AD-DC VMID 201, ERP VMID 202, Backup-PRA VMID 203) créées sans impact sur les VMs existantes 100-103
 
 ### 5.2.4 Observabilité avancée
 
