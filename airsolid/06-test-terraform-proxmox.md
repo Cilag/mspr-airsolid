@@ -1,29 +1,58 @@
-# 06 — Test Terraform + Proxmox
+# 06 — Rapport de test Terraform / Proxmox
 
-**Date :** 2026-06-15  
-**Opérateur :** Infra Lead (GUI-203)  
-**Hôte PVE :** 192.168.1.100 (Proxmox VE 9.2.3)  
-**Provider Terraform :** bpg/proxmox v0.109.0 (compatible `~> 0.66`)  
+> Exécuté le 2026-06-15 — Proxmox VE 9.2.3 (`pve`, `192.168.1.100`) — Terraform v1.15.5 / bpg/proxmox v0.109.0
 
 ---
 
-## Environnement de test
+## Contexte
 
-| Paramètre | Valeur |
-|-----------|--------|
-| Hôte Proxmox | 192.168.1.100 |
-| Version PVE | 9.2.3 |
-| RAM hôte | 16 Go |
-| RAM libre (VMs homelab arrêtées) | ~14 Go |
-| Stockage images | `local` (ISO, backup) |
-| Stockage disques VM | `local-lvm` (LVM thin) |
-| Bridge réseau | `vmbr0` (LAN, 192.168.1.100/24) |
-| Terraform | >= 1.5, bpg/proxmox v0.109.0 |
-| Workdir terraform | `/tmp/mspr-airsolid-tf/terraform/` |
+Ce document prouve l'exécution réelle du cycle Terraform complet (init → plan → apply → idempotence → destroy) sur le Proxmox de test AIRSOLID. Les VMs créées sont dans la plage VMID **200-299**, sans jamais toucher les VMs 100-103 (existantes) ni le bridge `vmbr0`.
 
 ---
 
-## Templates disponibles (`qm list` avant apply)
+## Pré-requis mis en place
+
+### Token API Proxmox
+
+Token créé via `pveum` sur le Proxmox host :
+
+```
+pveum user token add root@pam airsolid-tf --privsep=0
+```
+
+| Champ         | Valeur              |
+|---------------|---------------------|
+| full-tokenid  | `root@pam!airsolid-tf` |
+| privsep       | 0 (accès complet)   |
+
+### Bridge vmbr99 (réseau AIRSOLID isolé)
+
+Bridge interne créé sur le Proxmox host, sans uplink vers `vmbr0` :
+
+```bash
+cat >> /etc/network/interfaces << 'EOF'
+
+auto vmbr99
+iface vmbr99 inet manual
+    bridge-ports none
+    bridge-stp off
+    bridge-fd 0
+    bridge-maxwait 0
+    # AIRSOLID isolated internal bridge - no uplink
+EOF
+ifup vmbr99
+```
+
+Vérification :
+
+```
+19: vmbr99: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/ether be:3a:77:96:1b:5a brd ff:ff:ff:ff:ff:ff
+```
+
+---
+
+## Étape 0 — qm list avant Terraform (baseline)
 
 ```
       VMID NAME                 STATUS     MEM(MB)    BOOTDISK(GB) PID
@@ -33,53 +62,13 @@
        103 pihole               stopped    512                5.00 0
 ```
 
-**ISOs disponibles sur `local` :**
-- `debian-12.14.0-amd64-netinst.iso` (677 Mo)
-- `TrueNAS-SCALE-24.10.2.2.iso` (1,7 Go)
-- `vyos-rolling-latest.iso` (654 Mo)
-
-**Templates VM cloud-init :** aucun — pas de template Ubuntu Server ni Windows Server disponible sur cet hôte homelab.
-
 ---
 
-## Token API Proxmox créé
-
-```bash
-pveum user add terraform@pve
-pveum aclmod / -user terraform@pve -role PVEVMAdmin
-pveum aclmod /storage/local-lvm -user terraform@pve -role PVEDatastoreAdmin
-pveum aclmod /storage/local -user terraform@pve -role PVEDatastoreAdmin
-pveum aclmod /sdn/zones/localnetwork -user terraform@pve -role PVESDNUser
-pveum user token add terraform@pve mytoken --privsep=0
-```
-
-**Token généré :** `terraform@pve!mytoken`
-
-**ACL effectives :**
-
-```
-┌─────────────────────────┬───────────────────┬──────┬───────────────┬───────────┐
-│ path                    │ roleid            │ type │ ugid          │ propagate │
-╞═════════════════════════╪═══════════════════╪══════╪═══════════════╪═══════════╡
-│ /                       │ PVEVMAdmin        │ user │ terraform@pve │ 1         │
-├─────────────────────────┼───────────────────┼──────┼───────────────┼───────────┤
-│ /sdn/zones/localnetwork │ PVESDNUser        │ user │ terraform@pve │ 1         │
-├─────────────────────────┼───────────────────┼──────┼───────────────┼───────────┤
-│ /storage/local          │ PVEDatastoreAdmin │ user │ terraform@pve │ 1         │
-├─────────────────────────┼───────────────────┼──────┼───────────────┼───────────┤
-│ /storage/local-lvm      │ PVEDatastoreAdmin │ user │ terraform@pve │ 1         │
-└─────────────────────────┴───────────────────┴──────┴───────────────┴───────────┘
-```
-
-> **Note critique :** PVE 9.x impose `SDN.Use` sur `/sdn/zones/localnetwork` pour attacher une interface réseau à un bridge. Cette permission n'est pas documentée dans la plupart des guides Terraform/Proxmox. Sans elle, l'apply échoue avec HTTP 403.
-
----
-
-## `terraform init`
+## Étape 1 — terraform init ✅
 
 ```
 Initializing provider plugins found in the configuration...
-- Finding bpg/proxmox versions matching "~> 0.66"...
+- Finding bpg/proxmox versions matching "~> 0.69"...
 - Installing bpg/proxmox v0.109.0...
 - Installed bpg/proxmox v0.109.0 (self-signed, key ID F0582AD6AE97C188)
 
@@ -88,58 +77,58 @@ Terraform has been successfully initialized!
 
 ---
 
-## `terraform plan` (sortie complète — résumé)
+## Étape 2 — terraform plan ✅
 
 ```
-proxmox_virtual_environment_vm.airsolid_backup will be created
-proxmox_virtual_environment_vm.airsolid_dc1 will be created
-proxmox_virtual_environment_vm.airsolid_erp will be created
-proxmox_virtual_environment_vm.airsolid_fileserver will be created
-proxmox_virtual_environment_vm.airsolid_firewall will be created
-proxmox_virtual_environment_vm.airsolid_monitoring will be created
-
-Plan: 6 to add, 0 to change, 0 to destroy.
+Plan: 3 to add, 0 to change, 0 to destroy.
 
 Changes to Outputs:
-  + airsolid_vm_ids = {
-      + backup     = 205
-      + dc1        = 201
-      + erp        = 202
-      + fileserver = 203
-      + firewall   = 200
-      + monitoring = 204
-    }
-  + ram_total_allocated_mb = 10240
+  + airsolid_ad_dc_name      = "airsolid-ad-dc"
+  + airsolid_ad_dc_vmid      = 201
+  + airsolid_backup_pra_name = "airsolid-backup-pra"
+  + airsolid_backup_pra_vmid = 203
+  + airsolid_erp_name        = "airsolid-erp"
+  + airsolid_erp_vmid        = 202
 ```
 
-**Résultat plan : 0 erreur, 6 ressources à créer. RAM totale = 10 240 Mo (10 Go, dans limite hôte).**
+Ressources planifiées :
+
+| VMID | Nom                 | vCPU | RAM (MB) | Disque  | Bridge  |
+|------|---------------------|------|----------|---------|---------|
+| 201  | airsolid-ad-dc      | 2    | 2048     | 32 GB   | vmbr99  |
+| 202  | airsolid-erp        | 2    | 4096     | 50 GB   | vmbr99  |
+| 203  | airsolid-backup-pra | 2    | 2048     | 100 GB  | vmbr99  |
+
+**RAM totale : 8 192 MB ≤ 10 240 MB** ✓
 
 ---
 
-## `terraform apply` (sortie complète)
+## Étape 3 — terraform apply -auto-approve ✅
 
 ```
-proxmox_virtual_environment_vm.airsolid_firewall: Creating...
-proxmox_virtual_environment_vm.airsolid_fileserver: Creating...
-proxmox_virtual_environment_vm.airsolid_dc1: Creating...
-proxmox_virtual_environment_vm.airsolid_monitoring: Creating...
-proxmox_virtual_environment_vm.airsolid_backup: Creating...
 proxmox_virtual_environment_vm.airsolid_erp: Creating...
-proxmox_virtual_environment_vm.airsolid_firewall: Creation complete after 5s [id=200]
-proxmox_virtual_environment_vm.airsolid_fileserver: Creation complete after 5s [id=203]
-proxmox_virtual_environment_vm.airsolid_dc1: Creation complete after 5s [id=201]
-proxmox_virtual_environment_vm.airsolid_monitoring: Creation complete after 5s [id=204]
-proxmox_virtual_environment_vm.airsolid_backup: Creation complete after 5s [id=205]
-proxmox_virtual_environment_vm.airsolid_erp: Creation complete after 5s [id=202]
+proxmox_virtual_environment_vm.airsolid_ad_dc: Creating...
+proxmox_virtual_environment_vm.airsolid_backup_pra: Creating...
+proxmox_virtual_environment_vm.airsolid_erp: Creation complete after 1s [id=202]
+proxmox_virtual_environment_vm.airsolid_backup_pra: Creation complete after 1s [id=203]
+proxmox_virtual_environment_vm.airsolid_ad_dc: Creation complete after 1s [id=201]
 
-Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+
+Outputs:
+airsolid_ad_dc_name      = "airsolid-ad-dc"
+airsolid_ad_dc_vmid      = 201
+airsolid_backup_pra_name = "airsolid-backup-pra"
+airsolid_backup_pra_vmid = 203
+airsolid_erp_name        = "airsolid-erp"
+airsolid_erp_vmid        = 202
 ```
-
-**Durée apply : ~5 secondes. 0 erreur.**
 
 ---
 
-## Vérification `qm list` après apply
+## Étape 4 — qm list après apply ✅
+
+VMs AIRSOLID (201-203) présentes — VMs 100-103 intactes :
 
 ```
       VMID NAME                 STATUS     MEM(MB)    BOOTDISK(GB) PID
@@ -147,47 +136,45 @@ Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
        101 truenas              stopped    4096              20.00 0
        102 monitoring           stopped    1024              10.00 0
        103 pihole               stopped    512                5.00 0
-       200 airsolid-fw          running    1024              20.00 90676
-       201 airsolid-dc1         running    2048              40.00 90641
-       202 airsolid-erp         running    2048              40.00 90703
-       203 airsolid-fs          running    1024              80.00 90675
-       204 airsolid-monitoring  running    2048              20.00 90650
-       205 airsolid-pbs         running    2048              50.00 90699
+       201 airsolid-ad-dc       stopped    2048              32.00 0
+       202 airsolid-erp         stopped    4096              50.00 0
+       203 airsolid-backup-pra  stopped    2048             100.00 0
 ```
-
-**VMIDs 200–205 créés. VMIDs 100–103 (homelab) non touchés. ✅**
-
-> Les VMs apparaissent `running` (QEMU démarré automatiquement lors de la création avec `initialization` cloud-init). Sans OS bootable, elles restent bloquées au niveau BIOS — état inoffensif pour ce test de validation.
 
 ---
 
-## Test idempotence (re-apply)
+## Étape 5 — Idempotence (re-apply) ✅
 
 ```
+proxmox_virtual_environment_vm.airsolid_ad_dc: Refreshing state... [id=201]
+proxmox_virtual_environment_vm.airsolid_backup_pra: Refreshing state... [id=203]
+proxmox_virtual_environment_vm.airsolid_erp: Refreshing state... [id=202]
+
 No changes. Your infrastructure matches the configuration.
+
 Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
 ```
 
-**Idempotence validée. ✅**
-
 ---
 
-## `terraform destroy`
+## Étape 6 — terraform destroy -auto-approve ✅
 
 ```
-proxmox_virtual_environment_vm.airsolid_monitoring: Destroying... [id=204]
-proxmox_virtual_environment_vm.airsolid_fileserver: Destroying... [id=203]
+proxmox_virtual_environment_vm.airsolid_backup_pra: Destroying... [id=203]
+proxmox_virtual_environment_vm.airsolid_ad_dc: Destroying... [id=201]
 proxmox_virtual_environment_vm.airsolid_erp: Destroying... [id=202]
-proxmox_virtual_environment_vm.airsolid_firewall: Destroying... [id=200]
-proxmox_virtual_environment_vm.airsolid_dc1: Destroying... [id=201]
-proxmox_virtual_environment_vm.airsolid_backup: Destroying... [id=205]
+proxmox_virtual_environment_vm.airsolid_erp: Destruction complete after 1s
+proxmox_virtual_environment_vm.airsolid_backup_pra: Destruction complete after 1s
+proxmox_virtual_environment_vm.airsolid_ad_dc: Destruction complete after 1s
 
-Destroy complete! Resources: 6 destroyed.
+Destroy complete! Resources: 3 destroyed.
 ```
 
 ---
 
-## Vérification `qm list` après destroy
+## Étape 7 — qm list final ✅
+
+Seules les VMs 100-103 subsistent, inchangées :
 
 ```
       VMID NAME                 STATUS     MEM(MB)    BOOTDISK(GB) PID
@@ -197,33 +184,35 @@ Destroy complete! Resources: 6 destroyed.
        103 pihole               stopped    512                5.00 0
 ```
 
-**VMIDs 200–205 supprimés proprement. VMIDs 100–103 inchangés. ✅**
+---
+
+## Écarts et notes techniques
+
+### VMs sans OS (bare VMs)
+
+Les VMs ont été créées avec un disque vide (format `raw`) et `started = false`. Aucun template Windows n'étant disponible sur ce Proxmox de test, les VMs sont des coquilles vides fonctionnelles au sens Terraform/Proxmox, mais non bootables sans ISO.
+
+**Justification** : ce choix permet de valider le cycle Terraform complet (init/plan/apply/idempotence/destroy) indépendamment de l'existence de templates. En production, les blocs `disk {}` seraient remplacés par des blocs `clone {}` pointant vers des templates Windows Server 2022 ou Debian cloud-init.
+
+### CPU type x86-64-v2-AES
+
+Baseline QEMU sécurisée sans fuite du CPU hôte. En production avec un cluster HA, remplacer par `kvm64` ou `host` selon la politique de live migration.
+
+### Provider bpg/proxmox v0.109.0
+
+La contrainte `~> 0.69` du fichier `versions.tf` a résolu vers v0.109.0 (dernière release stable). Compatible avec Proxmox VE 8.x et 9.x.
 
 ---
 
-## Écarts vs architecture cible
+## Résultat global
 
-| Élément | Cible | Réel homelab | Raison / Action corrective |
-|---------|-------|-------------|--------------------------|
-| OS DC1, ERP, FS | Windows Server 2022 | Disque vide (no OS) | Aucun template Win2022 sur PVE → acquérir licences + créer templates |
-| OS OPNsense | ISO OPNsense dédiée | Disque vide (no OS) | Déposer ISO OPNsense dans `local` et configurer boot |
-| OS Monitoring, PBS | Ubuntu cloud-init | Disque vide (no OS) | Télécharger `ubuntu-24.04-server-cloudimg-amd64.img` → créer template |
-| Bridge WAN/DMZ | `vmbr1` | Absent | Ajouter `vmbr1` dans `/etc/network/interfaces` sur l'hôte PVE |
-| VLANs 10/20/30/40 | Segments physiques séparés | Configurés dans Terraform (vlan_id) | Fonctionnels dès que OPNsense routera entre les VLANs |
-| Permission SDN | Non prévue initialement | `PVESDNUser` requis sur `/sdn/zones/localnetwork` | Découverte empirique PVE 9.x → ajoutée au playbook de provisionning |
-
----
-
-## Conclusion
-
-Le cycle complet Terraform **init → plan → apply → vérification → idempotence → destroy** a été validé sur Proxmox PVE 9.2.3 avec le provider **bpg/proxmox v0.109.0**.
-
-| Critère | Résultat |
-|---------|----------|
-| VMIDs 200–205 créés | ✅ |
-| Idempotence (re-apply = 0 changements) | ✅ |
-| Destroy propre | ✅ |
-| VMs homelab 100–103 non touchées | ✅ |
-| RAM totale AIRSOLID ≤ 10 Go | ✅ (10 240 Mo exactement) |
-
-Le code Terraform est prêt à évoluer vers un déploiement avec OS réels (templates cloud-init Ubuntu + ISO OPNsense) dès que les prérequis seront disponibles sur l'hôte.
+| Étape                        | Résultat |
+|------------------------------|----------|
+| terraform init               | ✅ Succès |
+| terraform plan               | ✅ 3 à créer |
+| terraform apply -auto-approve | ✅ 3 créées |
+| qm list — VMs 201-203 présentes | ✅ Confirmé |
+| qm list — VMs 100-103 intactes | ✅ Confirmé |
+| terraform apply (idempotence) | ✅ No changes |
+| terraform destroy -auto-approve | ✅ 3 détruites |
+| qm list final — 100-103 seuls | ✅ Confirmé |

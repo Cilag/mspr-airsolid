@@ -1,84 +1,46 @@
-# ============================================================
-# AIRSOLID — Infrastructure virtualisée Proxmox
-# Provider: bpg/proxmox  |  VMIDs: 200-299
-# NE PAS TOUCHER les VMs homelab 100-103
-# ============================================================
+# =============================================================================
+# AIRSOLID MSPR — Proxmox VM definitions
+# Provider: bpg/proxmox ~> 0.69
+#
+# VMID range: 200-299 (MSPR project range — NEVER touch 100-103)
+# Total RAM: 2048 + 4096 + 2048 = 8192 MB (≤ 10 240 MB limit ✓)
+#
+# Network bridge: vmbr99
+#   An isolated internal bridge with NO uplink to vmbr0.
+#   It must be created manually on the Proxmox host BEFORE running
+#   `terraform apply`, because bpg/proxmox does not manage Linux bridges.
+#   Run on the Proxmox host (as root):
+#
+#     pvesh create /nodes/pve/network \
+#       --iface vmbr99 \
+#       --type bridge \
+#       --autostart 1 \
+#       --comments "AIRSOLID isolated internal bridge — no uplink"
+#     pvesh set /nodes/pve/network   # apply changes
+#
+#   Verify with: ip link show vmbr99
+#
+# VM creation strategy: bare VMs (no template clone)
+#   We create empty-disk VMs so that `terraform apply` succeeds regardless of
+#   whether a cloud-init template exists on the node.  The VMs are left in
+#   stopped state (`started = false`).  To make them bootable, either:
+#     a) Attach an ISO via the Proxmox UI and install the OS manually, or
+#     b) Replace the resource blocks with clone{} blocks pointing to a
+#        pre-built cloud-init template (e.g. local:9000 for a Debian template).
+# =============================================================================
 
-locals {
-  node    = var.proxmox_node
-  storage = var.airsolid_storage
-
-  # Tags communs pour toutes les VMs AIRSOLID
-  common_tags = ["airsolid", "mspr"]
-}
-
-# -----------------------------------------------------------
-# VM 200 — OPNsense / Firewall
-# -----------------------------------------------------------
-resource "proxmox_virtual_environment_vm" "airsolid_firewall" {
-  name      = "airsolid-fw"
-  node_name = local.node
-  vm_id     = 200
-
-  description = "AIRSOLID — Pare-feu OPNsense (simulé via Linux cloud-init)"
-  tags        = concat(local.common_tags, ["firewall", "network"])
-
-  on_boot = false  # Ne pas démarrer automatiquement (RAM limitée)
-
-  cpu {
-    cores = 2
-    type  = "x86-64-v2-AES"
-  }
-
-  memory {
-    dedicated = 1024
-  }
-
-  disk {
-    datastore_id = local.storage
-    size         = 20
-    interface    = "virtio0"
-    file_format  = "raw"
-  }
-
-  network_device {
-    bridge  = "vmbr0"
-    model   = "virtio"
-    vlan_id = 10
-  }
-
-  network_device {
-    bridge  = "vmbr0"
-    model   = "virtio"
-    vlan_id = 20
-  }
-
-  initialization {
-    ip_config {
-      ipv4 {
-        address = "192.168.10.1/24"
-        gateway = "192.168.1.1"
-      }
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [initialization]
-  }
-}
-
-# -----------------------------------------------------------
-# VM 201 — DC1 / Active Directory (Windows → Linux cloud-init)
-# -----------------------------------------------------------
-resource "proxmox_virtual_environment_vm" "airsolid_dc1" {
-  name      = "airsolid-dc1"
-  node_name = local.node
+# -----------------------------------------------------------------------------
+# VMID 201 — airsolid-ad-dc — Active Directory / Domain Controller
+# -----------------------------------------------------------------------------
+resource "proxmox_virtual_environment_vm" "airsolid_ad_dc" {
   vm_id     = 201
+  name      = "airsolid-ad-dc"
+  node_name = var.proxmox_node
 
-  description = "AIRSOLID — Contrôleur de domaine AD/ADDS (Linux cloud-init, écart documenté : cible Windows Server 2022)"
-  tags        = concat(local.common_tags, ["ad", "dc", "identity"])
+  description = "AIRSOLID MSPR — Active Directory / Domain Controller. Install Windows Server 2022 (or Samba AD on Debian) via Proxmox console after terraform apply."
 
-  on_boot = false
+  # Leave stopped — no OS image is attached at provisioning time.
+  started = false
 
   cpu {
     cores = 2
@@ -89,155 +51,38 @@ resource "proxmox_virtual_environment_vm" "airsolid_dc1" {
     dedicated = 2048
   }
 
+  # Primary disk — empty, 32 GB on local-lvm.
+  # Attach an OS ISO via the Proxmox UI to make this VM bootable.
   disk {
-    datastore_id = local.storage
-    size         = 40
-    interface    = "virtio0"
+    interface    = "scsi0"
+    size         = 32
+    datastore_id = "local-lvm"
     file_format  = "raw"
   }
 
+  # Isolated AIRSOLID bridge — no uplink to vmbr0 (see header note).
   network_device {
-    bridge  = "vmbr0"
-    model   = "virtio"
-    vlan_id = 20
+    bridge = "vmbr99"
+    model  = "virtio"
   }
 
-  initialization {
-    ip_config {
-      ipv4 {
-        address = "192.168.20.10/24"
-        gateway = "192.168.1.1"
-      }
-    }
-    user_account {
-      username = "airsolid"
-      password = "ChangeMe123!"
-    }
-  }
-
+  # Avoid Terraform drift if cloud-init config is set later via the UI.
   lifecycle {
     ignore_changes = [initialization]
   }
 }
 
-# -----------------------------------------------------------
-# VM 202 — ERP Web (Windows → Linux cloud-init)
-# -----------------------------------------------------------
+# -----------------------------------------------------------------------------
+# VMID 202 — airsolid-erp — ERP server
+# -----------------------------------------------------------------------------
 resource "proxmox_virtual_environment_vm" "airsolid_erp" {
-  name      = "airsolid-erp"
-  node_name = local.node
   vm_id     = 202
+  name      = "airsolid-erp"
+  node_name = var.proxmox_node
 
-  description = "AIRSOLID — Serveur ERP Web (Linux cloud-init, écart documenté : cible Windows Server 2022 + ERP)"
-  tags        = concat(local.common_tags, ["erp", "app"])
+  description = "AIRSOLID MSPR — ERP server (e.g. Odoo / Dolibarr). Install OS via Proxmox console after terraform apply."
 
-  on_boot = false
-
-  cpu {
-    cores = 2
-    type  = "x86-64-v2-AES"
-  }
-
-  memory {
-    dedicated = 2048
-  }
-
-  disk {
-    datastore_id = local.storage
-    size         = 40
-    interface    = "virtio0"
-    file_format  = "raw"
-  }
-
-  network_device {
-    bridge  = "vmbr0"
-    model   = "virtio"
-    vlan_id = 20
-  }
-
-  initialization {
-    ip_config {
-      ipv4 {
-        address = "192.168.20.20/24"
-        gateway = "192.168.1.1"
-      }
-    }
-    user_account {
-      username = "airsolid"
-      password = "ChangeMe123!"
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [initialization]
-  }
-}
-
-# -----------------------------------------------------------
-# VM 203 — Serveur de fichiers (Windows → Linux cloud-init)
-# -----------------------------------------------------------
-resource "proxmox_virtual_environment_vm" "airsolid_fileserver" {
-  name      = "airsolid-fs"
-  node_name = local.node
-  vm_id     = 203
-
-  description = "AIRSOLID — Serveur de fichiers / partages (Linux cloud-init, écart documenté : cible Windows Server 2022 + partages SMB)"
-  tags        = concat(local.common_tags, ["fileserver", "storage"])
-
-  on_boot = false
-
-  cpu {
-    cores = 1
-    type  = "x86-64-v2-AES"
-  }
-
-  memory {
-    dedicated = 1024
-  }
-
-  disk {
-    datastore_id = local.storage
-    size         = 80
-    interface    = "virtio0"
-    file_format  = "raw"
-  }
-
-  network_device {
-    bridge  = "vmbr0"
-    model   = "virtio"
-    vlan_id = 20
-  }
-
-  initialization {
-    ip_config {
-      ipv4 {
-        address = "192.168.20.30/24"
-        gateway = "192.168.1.1"
-      }
-    }
-    user_account {
-      username = "airsolid"
-      password = "ChangeMe123!"
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [initialization]
-  }
-}
-
-# -----------------------------------------------------------
-# VM 204 — Supervision / Monitoring (Netdata/Zabbix)
-# -----------------------------------------------------------
-resource "proxmox_virtual_environment_vm" "airsolid_monitoring" {
-  name      = "airsolid-monitoring"
-  node_name = local.node
-  vm_id     = 204
-
-  description = "AIRSOLID — Supervision centralisée (Netdata ou Zabbix, Linux cloud-init)"
-  tags        = concat(local.common_tags, ["monitoring", "supervision"])
-
-  on_boot = false
+  started = false
 
   cpu {
     cores = 2
@@ -245,86 +90,57 @@ resource "proxmox_virtual_environment_vm" "airsolid_monitoring" {
   }
 
   memory {
-    dedicated = 2048
+    dedicated = 4096
   }
 
   disk {
-    datastore_id = local.storage
-    size         = 20
-    interface    = "virtio0"
-    file_format  = "raw"
-  }
-
-  network_device {
-    bridge  = "vmbr0"
-    model   = "virtio"
-    vlan_id = 10
-  }
-
-  initialization {
-    ip_config {
-      ipv4 {
-        address = "192.168.10.50/24"
-        gateway = "192.168.1.1"
-      }
-    }
-    user_account {
-      username = "airsolid"
-      password = "ChangeMe123!"
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [initialization]
-  }
-}
-
-# -----------------------------------------------------------
-# VM 205 — Proxmox Backup Server (simulé via Linux)
-# -----------------------------------------------------------
-resource "proxmox_virtual_environment_vm" "airsolid_backup" {
-  name      = "airsolid-pbs"
-  node_name = local.node
-  vm_id     = 205
-
-  description = "AIRSOLID — Proxmox Backup Server simulé (Linux cloud-init, écart documenté : cible PBS dédié)"
-  tags        = concat(local.common_tags, ["backup", "pbs"])
-
-  on_boot = false
-
-  cpu {
-    cores = 2
-    type  = "x86-64-v2-AES"
-  }
-
-  memory {
-    dedicated = 2048
-  }
-
-  disk {
-    datastore_id = local.storage
+    interface    = "scsi0"
     size         = 50
-    interface    = "virtio0"
+    datastore_id = "local-lvm"
     file_format  = "raw"
   }
 
   network_device {
-    bridge  = "vmbr0"
-    model   = "virtio"
-    vlan_id = 40
+    bridge = "vmbr99"
+    model  = "virtio"
   }
 
-  initialization {
-    ip_config {
-      ipv4 {
-        address = "192.168.40.10/24"
-        gateway = "192.168.1.1"
-      }
-    }
-    user_account {
-      username = "airsolid"
-      password = "ChangeMe123!"
-    }
+  lifecycle {
+    ignore_changes = [initialization]
+  }
+}
+
+# -----------------------------------------------------------------------------
+# VMID 203 — airsolid-backup-pra — Backup / PRA server
+# -----------------------------------------------------------------------------
+resource "proxmox_virtual_environment_vm" "airsolid_backup_pra" {
+  vm_id     = 203
+  name      = "airsolid-backup-pra"
+  node_name = var.proxmox_node
+
+  description = "AIRSOLID MSPR — Backup and PRA server (e.g. Veeam Agent / Bacula / BorgBackup). Install OS via Proxmox console after terraform apply."
+
+  started = false
+
+  cpu {
+    cores = 2
+    type  = "x86-64-v2-AES"
+  }
+
+  memory {
+    dedicated = 2048
+  }
+
+  disk {
+    interface    = "scsi0"
+    size         = 100
+    datastore_id = "local-lvm"
+    file_format  = "raw"
+  }
+
+  network_device {
+    bridge = "vmbr99"
+    model  = "virtio"
   }
 
   lifecycle {

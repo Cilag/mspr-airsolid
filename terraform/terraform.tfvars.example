@@ -1,11 +1,4 @@
-# Copier ce fichier en terraform.tfvars et renseigner les valeurs
-# NE JAMAIS commiter terraform.tfvars (contient des secrets)
-
-proxmox_endpoint     = "https://192.168.1.100:8006/"
-proxmox_token_id     = "terraform@pve!mytoken"
-proxmox_token_secret = "VOTRE_SECRET_ICI"
-proxmox_node         = "pve"
-airsolid_storage     = "local-lvm"
-
-# Template cloud-init Ubuntu 22.04 (si disponible sur le nœud)
-# airsolid_cloud_init_template = "local:iso/ubuntu-22.04-cloudimg.img"
+proxmox_endpoint      = "https://192.168.1.100:8006/"
+proxmox_token_id      = "root@pam!airsolid-tf"
+proxmox_token_secret  = "YOUR_TOKEN_SECRET_HERE"
+proxmox_node          = "pve"
