@@ -4,7 +4,7 @@ borg_version: "1.2.8"
 
 # Réseau backup isolé (vmbr99)
 backup_network: "192.168.99.0/24"
-backup_server_ip: "192.168.99.3"
+backup_server_ip: "192.168.99.203"
 
 # Utilisateur dédié sur le serveur Borg
 borg_user: borg
