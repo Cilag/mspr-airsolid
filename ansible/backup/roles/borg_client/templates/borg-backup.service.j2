@@ -1,0 +1,17 @@
+[Unit]
+Description=Sauvegarde BorgBackup — {{ inventory_hostname }}
+After=network.target
+# Évite les sauvegardes concurrentes
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/borg-backup.sh
+User=root
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+StandardOutput=journal
+StandardError=journal
+# Timeout de 6h max
+TimeoutStartSec=21600

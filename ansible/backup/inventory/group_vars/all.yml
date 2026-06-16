@@ -1,0 +1,48 @@
+---
+# BorgBackup version cible
+borg_version: "1.2.8"
+
+# Réseau backup isolé (vmbr99)
+backup_network: "192.168.99.0/24"
+backup_server_ip: "192.168.99.3"
+
+# Utilisateur dédié sur le serveur Borg
+borg_user: borg
+borg_group: borg
+borg_home: /var/backup
+borg_repos_dir: /var/backup/repos
+
+# Politique de rétention
+borg_retention:
+  keep_daily: 7
+  keep_weekly: 4
+  keep_monthly: 6
+  keep_yearly: 2
+
+# Dossiers à sauvegarder sur les clients
+borg_backup_paths:
+  - /etc
+  - /home
+  - /var/log
+  - /opt
+  - /srv
+
+# Exclusions
+borg_exclude_patterns:
+  - "*.tmp"
+  - "*.cache"
+  - "/proc"
+  - "/sys"
+  - "/dev"
+  - "/run"
+  - "/tmp"
+
+# Compression (lz4 = rapide, zstd = meilleur ratio)
+borg_compression: "lz4"
+
+# Chiffrement du dépôt (repokey = clé stockée dans le repo)
+borg_encryption: "repokey"
+
+# Heure de la sauvegarde quotidienne
+borg_backup_hour: "23"
+borg_backup_minute: "00"
