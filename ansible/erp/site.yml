@@ -1,0 +1,22 @@
+---
+- name: VM202 ERP — install Docker + deploy Odoo 17 CE
+  hosts: erp
+  become: true
+  vars:
+    erp_deploy_dir: /opt/erp
+    postgres_password: "{{ lookup('env', 'ERP_POSTGRES_PASSWORD') | default('airsolid_erp_2026', true) }}"
+
+  pre_tasks:
+    - name: Guard — never touch production VMIDs 100-103
+      ansible.builtin.fail:
+        msg: "Refused: this playbook must not run against VMIDs 100-103"
+      when: inventory_hostname in ['192.168.1.100', '192.168.1.101', '192.168.1.102', '192.168.1.103']
+
+    - name: Apt cache update
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  roles:
+    - docker_install
+    - erp_deploy
