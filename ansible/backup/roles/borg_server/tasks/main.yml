@@ -1,0 +1,118 @@
+---
+- name: Mettre à jour la liste des paquets
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Installer les dépendances BorgBackup
+  ansible.builtin.apt:
+    name:
+      - borgbackup
+      - python3-pip
+      - openssh-server
+      - acl
+    state: present
+
+- name: Créer le groupe borg
+  ansible.builtin.group:
+    name: "{{ borg_group }}"
+    system: true
+    state: present
+
+- name: Créer l'utilisateur borg (accès SSH restreint)
+  ansible.builtin.user:
+    name: "{{ borg_user }}"
+    group: "{{ borg_group }}"
+    home: "{{ borg_home }}"
+    shell: /bin/bash
+    system: true
+    create_home: true
+    state: present
+
+- name: Créer les répertoires de dépôts
+  ansible.builtin.file:
+    path: "{{ borg_repos_dir }}"
+    state: directory
+    owner: "{{ borg_user }}"
+    group: "{{ borg_group }}"
+    mode: "0750"
+
+- name: Créer le répertoire .ssh pour l'utilisateur borg
+  ansible.builtin.file:
+    path: "{{ borg_home }}/.ssh"
+    state: directory
+    owner: "{{ borg_user }}"
+    group: "{{ borg_group }}"
+    mode: "0700"
+
+- name: Créer le fichier authorized_keys vide si absent
+  ansible.builtin.file:
+    path: "{{ borg_home }}/.ssh/authorized_keys"
+    state: touch
+    owner: "{{ borg_user }}"
+    group: "{{ borg_group }}"
+    mode: "0600"
+    modification_time: preserve
+    access_time: preserve
+
+- name: Créer le répertoire de dépôt par client
+  ansible.builtin.file:
+    path: "{{ borg_repos_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ borg_user }}"
+    group: "{{ borg_group }}"
+    mode: "0750"
+  loop:
+    - vm201
+    - vm202
+
+- name: Configurer sshd — désactiver accès root password, activer clés
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+    backup: true
+  loop:
+    - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+    - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+    - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin prohibit-password' }
+  notify: Redémarrer sshd
+
+- name: Déployer le script de vérification de cohérence des dépôts
+  ansible.builtin.template:
+    src: borg-check.sh.j2
+    dest: /usr/local/bin/borg-check.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Créer le timer systemd pour la vérification hebdomadaire
+  ansible.builtin.template:
+    src: borg-check.service.j2
+    dest: /etc/systemd/system/borg-check.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Créer le timer systemd — timer hebdomadaire
+  ansible.builtin.template:
+    src: borg-check.timer.j2
+    dest: /etc/systemd/system/borg-check.timer
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Activer et démarrer le timer borg-check
+  ansible.builtin.systemd:
+    name: borg-check.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Afficher le résumé du serveur
+  ansible.builtin.debug:
+    msg:
+      - "Serveur BorgBackup configuré sur {{ inventory_hostname }}"
+      - "Dépôts: {{ borg_repos_dir }}/vm201 et {{ borg_repos_dir }}/vm202"
+      - "Ajouter les clés SSH des clients dans {{ borg_home }}/.ssh/authorized_keys"
