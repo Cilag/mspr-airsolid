@@ -1,0 +1,19 @@
+---
+# ============================================================
+# Playbook: vm201-addc.yml
+# Purpose:  Install and configure Samba Active Directory DC
+#           on VM 201 (airsolid-ad-dc, vmbr99).
+#
+# Prerequisites:
+#   - VM 201 booted with Debian 12 cloud image (cloud-init done)
+#   - Reachable via temp vmbr0 IP (192.168.1.201) with root SSH key
+#
+# Run:
+#   ansible-playbook -i ansible/inventory/airsolid.yml \
+#                    ansible/playbooks/vm201-addc.yml
+# ============================================================
+- name: VM201 AIRSOLID — Samba Active Directory Domain Controller
+  hosts: airsolid_ad
+  gather_facts: yes
+  roles:
+    - samba_addc
