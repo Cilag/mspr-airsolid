@@ -58,7 +58,7 @@ flowchart TD
 
 ## 2.3 Composants de l'architecture
 
-### 2.3.1 Couche physique — deux serveurs
+### 2.3.1 Couche physique — deux serveurs envisagés
 
 | Paramètre | Serveur Primaire (SRV1) | Serveur Secondaire (SRV2) |
 |---|---|---|
@@ -72,8 +72,6 @@ flowchart TD
 | **Hyperviseur** | Proxmox VE 8.x | Proxmox VE 8.x |
 
 > Les deux serveurs forment un **cluster Proxmox VE** en mode HA (High Availability). En cas de panne du nœud primaire, les VMs basculent automatiquement sur le secondaire en moins de 5 minutes.
-
-> **Option budget contraint** : si le serveur existant (10 TB, 15+ ans) est encore fonctionnel après audit, il peut être utilisé comme nœud secondaire (PBS / réplication) en attendant son remplacement, permettant de réduire le CAPEX initial. Audit préalable obligatoire (SMART, benchmarks, alimentation).
 
 ### 2.3.2 Machines virtuelles
 
@@ -95,9 +93,9 @@ flowchart TD
 flowchart LR
     subgraph VLANS["Segmentation VLAN"]
         V10["VLAN 10\n10.0.10.0/24\nServeurs"]
-        V20["VLAN 20\n10.0.20.0/24\nBureau"]
-        V30["VLAN 30\n10.0.30.0/24\nAtelier SAV"]
-        V99["VLAN 99\n10.0.99.0/24\nManagement Proxmox"]
+        V20["VLAN 20\n10.0.20.0/24\nUtilisateurs"]
+        V30["VLAN 30\n10.0.30.0/24\nAtelier"]
+        V99["VLAN 99\n10.0.99.0/24\nAdmin"]
     end
 
     FW["OPNsense\nRoutage inter-VLAN\n+ Règles de filtrage"]
@@ -113,7 +111,7 @@ flowchart LR
 | **VLAN 10** | 10.0.10.0/24 | Serveurs virtuels (VMs) | Toutes VMs entre elles |
 | **VLAN 20** | 10.0.20.0/24 | Postes bureautique | ERP (443), Fichiers (445/139), AD (389/636) |
 | **VLAN 30** | 10.0.30.0/24 | Atelier SAV | ERP (443), Fichiers (445/139), AD — isolé de VLAN 20 |
-| **VLAN 99** | 10.0.99.0/24 | Management Proxmox | SSH (22), HTTPS Proxmox (8006) — IP whitelist uniquement |
+| **VLAN 99** | 10.0.99.0/24 | Admin | SSH (22), HTTPS Proxmox (8006) — IP whitelist uniquement |
 
 > **VPN pour 30 télétravailleurs** : 30 collaborateurs en télétravail ont été identifiés lors de l'entretien 1. Le VPN WireGuard est dimensionné pour accueillir ces 30 utilisateurs simultanés. Chaque pair dispose d'un certificat et d'un fichier de configuration individuels générés par le script de provisioning.
 
@@ -124,7 +122,7 @@ Le client n'a pas de flux EDI existants définis. La proposition ci-dessous cons
 ```mermaid
 sequenceDiagram
     participant ERP as VM-ERP (AIRSOLID)
-    participant FW as Pare-feu OPNsense
+    participant FW as Pare-feu Sophos
     participant EDI as Partenaire EDI / VAN
     participant FOURNISSEUR as Fournisseur / Transporteur
 
