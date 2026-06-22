@@ -4,7 +4,7 @@
 
 ---
 
-## Objectif 1 — Proxmox / XCP-ng — hyperviseur type 1 adapté au besoin
+## Objectif 1 — Proxmox — hyperviseur type 1 adapté au besoin
 
 ### Pourquoi Proxmox VE pour AIRSOLID ?
 
