@@ -144,25 +144,6 @@ Proxmox → Create VM
   Network: vmbr0, VLAN 10
 ```
 
-**Configuration post-installation** :
-
-```powershell
-# Renommer le serveur
-Rename-Computer -NewName "SRV-AD01" -Restart
-
-# Installer les rôles AD DS, DNS, DHCP
-Install-WindowsFeature -Name AD-Domain-Services, DNS, DHCP -IncludeManagementTools
-
-# Promouvoir en contrôleur de domaine
-Install-ADDSForest `
-  -DomainName "airsolid.local" `
-  -DomainNetbiosName "AIRSOLID" `
-  -ForestMode "WinThreshold" `
-  -DomainMode "WinThreshold" `
-  -InstallDns:$true `
-  -SafeModeAdministratorPassword (Read-Host -AsSecureString)
-```
-
 **Unités d'organisation (OU) à créer** :
 
 ```
@@ -186,48 +167,13 @@ airsolid.local
 
 Déployé sur SRV2, même configuration que VM-AD mais promu en **DC supplémentaire** (pas de forest, réplication SYSVOL/NETLOGON automatique via DFS-R).
 
-```powershell
-# Sur VM-AD-REP (SRV2), après jonction au domaine :
-Install-WindowsFeature -Name AD-Domain-Services, DNS -IncludeManagementTools
-
-Install-ADDSDomainController `
-  -DomainName "airsolid.local" `
-  -Credential (Get-Credential AIRSOLID\Administrateur) `
-  -InstallDns:$true `
-  -SafeModeAdministratorPassword (Read-Host -AsSecureString)
-```
-
 ### 3.4.3 VM-ERP — Serveur d'application ERP
 
-```powershell
-# Installation IIS + ASP.NET (exemple pour ERP web standard)
-Install-WindowsFeature -Name Web-Server, Web-Asp-Net45, Web-Net-Ext45,
-    Web-ISAPI-Ext, Web-ISAPI-Filter, Web-Mgmt-Console -IncludeManagementTools
-
-# SQL Server 2022 Express (si base locale) ou connexion SQL distante
-# → Coordonner avec l'éditeur ERP pour les paramètres spécifiques
-
-# Certificat HTTPS interne (via PKI AD CS ou Let's Encrypt interne)
-# → ERP accessible en HTTPS depuis VLAN20 et VLAN30
-```
+#### Install ODOO : 
 
 ### 3.4.4 VM-FILE — Serveur de fichiers
 
-```powershell
-# Rôle File Server + DFS
-Install-WindowsFeature -Name FS-FileServer, FS-DFS-Namespace, FS-DFS-Replication,
-    FS-Resource-Manager -IncludeManagementTools
-
-# Partages SMB principaux
-New-SmbShare -Name "Commercial$"     -Path "D:\Shares\Commercial"     -FullAccess "AIRSOLID\GRP_Commercial"
-New-SmbShare -Name "Administration$" -Path "D:\Shares\Administration" -FullAccess "AIRSOLID\GRP_Admin"
-New-SmbShare -Name "SAV$"            -Path "D:\Shares\SAV"            -FullAccess "AIRSOLID\GRP_SAV"
-New-SmbShare -Name "Direction$"      -Path "D:\Shares\Direction"      -FullAccess "AIRSOLID\GRP_Direction"
-New-SmbShare -Name "Commun$"         -Path "D:\Shares\Commun"         -FullAccess "AIRSOLID\Domain Users"
-
-# Quotas FSRM par département (exemple)
-New-FsrmQuota -Path "D:\Shares\Commercial" -Template "200 MB Limit"
-```
+#### Structure de sauvegarde : 
 
 ### 3.4.5 VM-MON — Supervision
 
@@ -255,28 +201,11 @@ Services supervisés :
 
 ---
 
-## 3.5 Configuration VPN WireGuard (nomades)
+## 3.5 Configuration VPN Sophos intégré (nomades)
 
-L'entretien 1 a confirmé **30 collaborateurs en télétravail** nécessitant un accès VPN. Chaque utilisateur reçoit un fichier de configuration WireGuard individuel.
+L'entretien 1 a confirmé **30 collaborateurs en télétravail** nécessitant un accès VPN.
 
-```bash
-# Sur Sophos : plugin os-wireguard
-# Clé serveur générée depuis l'interface Sophos → VPN → WireGuard
-
-# Configuration type pour un commercial nomade (fichier client) :
-[Interface]
-PrivateKey = <clé_privée_client>
-Address = 10.10.0.X/32
-DNS = 10.0.10.11   # VM-AD
-
-[Peer]
-PublicKey = <clé_publique_serveur>
-AllowedIPs = 10.0.10.0/24, 10.0.20.0/24
-Endpoint = vpn.airsolid.fr:51820
-PersistentKeepalive = 25
-```
-
-Les commerciaux nomades accèdent à l'ERP et aux fichiers via le tunnel WireGuard comme s'ils étaient au Utilisateurs, avec authentification AD intacte.
+Les commerciaux nomades accèdent à l'ERP et aux fichiers via le VPN comme s'ils étaient sur place, avec authentification AD intacte.
 
 ---
 
