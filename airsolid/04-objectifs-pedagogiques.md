@@ -20,13 +20,6 @@ Proxmox VE est un hyperviseur de **type 1** (bare-metal) basé sur Debian Linux 
 | Sauvegarde intégrée | Proxmox Backup Server (PBS) — sauvegardes incrémentielles déduplicatées sans coût |
 | Évolutivité | Ajout d'un 3e nœud pour le site secondaire sans réinstallation |
 
-### Comparaison avec XCP-ng
-
-XCP-ng (fork de XenServer, maintenu par Vates) est une alternative valide de type 1 :
-- Hyperviseur Xen vs KVM pour Proxmox — les deux sont matures et performants
-- XCP-ng dispose de Xen Orchestra (XO) pour l'administration, open-source
-- **Proxmox est retenu ici** car l'écosystème PBS + HA est plus intégré et la base installée en PME est plus large en France
-
 ### Lien avec le cours
 
 Ce cas illustre le choix d'un hyperviseur en fonction des contraintes organisationnelles (absence d'IT), budgétaires (open-source), et techniques (HA sur 2 nœuds minimum).
@@ -83,7 +76,7 @@ AIRSOLID est déjà engagé dans une démarche cloud (déploiement M365 en cours
 | ERP | Application on-premise | On-prem | Contraintes éditeur, données sensibles, performances |
 | Fichiers métier | Windows SMB + DFS | On-prem | Volumes > 1 TB, accès réseau local LAN |
 | Sauvegarde | PBS (local) + Azure Backup | Hybride | Règle 3-2-1 : local rapide, cloud hors site |
-| Accès nomade | WireGuard VPN | On-prem (OPNsense) | Accès ERP et fichiers sans dépendance cloud |
+| Accès nomade | Sophos VPN | On-prem (OPNsense) | Accès ERP et fichiers sans dépendance cloud |
 
 ### Azure AD Connect — synchronisation des identités
 
@@ -131,7 +124,7 @@ Email (DSI prestataire) + Teams webhook
 | VM-ERP | HTTP response time (port 443), CPU, RAM | > 2 s | > 5 s ou HTTP 5xx |
 | VM-FILE | Espace disque, IOPS, sessions SMB actives | 80 % disque | 95 % disque |
 | PBS | Dernier backup (timestamp), taux déduplication | > 26h sans backup | Job en échec |
-| OPNsense | Bande passante WAN, état tunnels WireGuard, paquets bloqués | 80 % bande passante | Tunnel down |
+| Sophos | Bande passante WAN, état tunnels WireGuard, paquets bloqués | 80 % bande passante | Tunnel down |
 | Services critiques | Ping ICMP + port check (AD:389, ERP:443, FILE:445) | Timeout 1 cycle | 3 cycles consécutifs |
 
 ### Alertes et astreinte
@@ -189,7 +182,7 @@ Une infrastructure VDI complète (Citrix, VMware Horizon, Proxmox VE VDI) est **
 
 | Population | Taille | Mobilité | Solution retenue |
 |---|---|---|---|
-| Commerciaux nomades | ~15 | Forte | VPN WireGuard + profils AD itinérants |
+| Commerciaux nomades | ~15 | Forte | VPN Sophos + profils AD itinérants |
 | Postes bureau | ~55 | Faible | Postes fixes joints au domaine, profils locaux |
 | Techniciens SAV | ~10 | Moyenne (atelier) | Postes fixes VLAN 30, profils locaux |
 
@@ -211,50 +204,7 @@ Si AIRSOLID recrute > 10 nomades supplémentaires ou ouvre le site secondaire, P
 
 ---
 
-## Objectif 7 — Hyper-V & résilience — lien atelier « résilience Windows » + ce cas
-
-### Lien pédagogique avec l'atelier Hyper-V
-
-L'atelier de résilience Windows utilise Hyper-V pour illustrer les concepts de haute disponibilité. Ces concepts se transposent directement au cas AIRSOLID avec Proxmox VE :
-
-| Concept Hyper-V (atelier) | Équivalent Proxmox VE (AIRSOLID) |
-|---|---|
-| Hyper-V Failover Clustering | Proxmox VE HA Manager |
-| Live Migration (vMotion) | Proxmox VM Migration (online) |
-| Hyper-V Replica | Proxmox Storage Replication (ZFS) |
-| Checkpoints (snapshots) | Proxmox Snapshots (qemu) |
-| Windows Server Backup | Proxmox Backup Server (PBS) |
-| CSV (Cluster Shared Volumes) | Ceph (optionnel) ou ZFS repliqué |
-
-### Résilience spécifique à AIRSOLID
-
-**Scénario de panne SRV1** (exercice pratique) :
-
-```
-État initial : VM-ERP tourne sur SRV1
-↓
-Simulation : SRV1 éteint brusquement
-↓
-Détection HA (watchdog corosync) : ~30 secondes
-↓
-Décision HA Manager : VM-ERP migre sur SRV2
-↓
-Redémarrage VM-ERP sur SRV2 : ~3-4 minutes
-↓
-État final : VM-ERP opérationnelle sur SRV2, utilisateurs reconnectés
-```
-
-**RTO mesuré** : < 5 minutes → **objectif "plus jamais 48h" atteint**
-
-### Points de résilience Windows maintenus
-
-- VM-AD + VM-AD-REP : 2 contrôleurs de domaine → si VM-AD tombe, VM-AD-REP prend le relais immédiatement (DNS, authentification continuent)
-- DHCP en failover : DHCP configuré en mode failover actif/passif entre VM-AD et VM-AD-REP
-- DFS-R : si VM-FILE tombe, les partages peuvent basculer sur un second nœud DFS (évolution)
-
----
-
-## Objectif 8 — PRA / PCO — plan de continuité documenté
+## Objectif 7 — PRA / PCO — plan de continuité documenté
 
 ### Définitions
 
@@ -276,7 +226,7 @@ Redémarrage VM-ERP sur SRV2 : ~3-4 minutes
 
 #### Scénario B — Ransomware (chiffrement des données)
 
-**Détection** : alerte sur activité I/O anormale + surveillance comportementale OPNsense IDS  
+**Détection** : alerte sur activité I/O anormale + surveillance Sophos
 **Actions immédiates** (Direction + Prestataire) :
 1. Isoler les VMs infectées (couper réseau depuis Proxmox)
 2. Identifier le périmètre de l'infection (quelles VMs touchées)
