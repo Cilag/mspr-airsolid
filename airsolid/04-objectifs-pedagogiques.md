@@ -17,7 +17,6 @@ Proxmox VE est un hyperviseur de **type 1** (bare-metal) basé sur Debian Linux 
 | Aucune équipe IT interne | Interface d'administration web (port 8006), intuitive pour un prestataire externe |
 | Budget contraint | Licence AGPL-3.0 — gratuit en production ; support commercial optionnel (180 €/an/nœud) |
 | Continuité de service | Cluster HA natif sur 2 nœuds : bascule automatique en < 5 min en cas de panne nœud |
-| Sauvegarde intégrée | Proxmox Backup Server (PBS) — sauvegardes incrémentielles déduplicatées sans coût |
 | Évolutivité | Ajout d'un 3e nœud pour le site secondaire sans réinstallation |
 
 ### Lien avec le cours
