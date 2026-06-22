@@ -66,7 +66,7 @@ La direction d'AIRSOLID a formulé les exigences suivantes, par ordre de priorit
 
 ### Priorité 2 — Modernisation et pérennité
 - Migrer vers des systèmes d'exploitation supportés (Windows Server 2022 ou 2025)
-- Capitaliser sur le déploiement **Microsoft 365** en cours (synchronisation des identités, accès cloud) — taux d'adoption actuellement **inférieur à 60 %** ; des adresses Gmail restent utilisées en parallèle de M365
+- Capitaliser sur le déploiement **Microsoft 365** en cours (synchronisation des identités, accès cloud) — Migration complète de TOUS les utilisateurs vers 365, abandon de GMAIL pour un passage complet sur les outils du cloud Microsoft 
 - Prévoir l'intégration du **dépôt secondaire** ouverture sous 12 mois
 
 ### Priorité 3 — Sécurisation des flux EDI et des accès nomades
