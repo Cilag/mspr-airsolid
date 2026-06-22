@@ -71,6 +71,5 @@ L'ouverture du dépôt secondaire prévue dans 12 mois nécessite :
 | Proxmox Backup Server | https://pbs.proxmox.com/docs/index.html |
 | Azure AD Connect — Microsoft | Docs Microsoft Learn : Azure AD Connect |
 | Sophos Documentation | https://docs.sophos.com/nsg/sophos-utm/utm/9.708/help/en-us/Content/utm/utmAdminGuide/SupportDocumentation.htm |
-| WireGuard — Protocol | https://www.wireguard.com/papers/wireguard.pdf |
 | ANSSI — Guide hygiène informatique | ANSSI-GP-078 |
 | NIST SP 800-34 — PRA | NIST Special Publication 800-34 Rev. 1 |
