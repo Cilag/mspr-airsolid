@@ -6,10 +6,8 @@ L'architecture retenue repose sur cinq axes :
 
 1. **Élimination du SPOF** — deux serveurs physiques avec réplication automatique des VMs
 2. **Virtualisation type 1** — Proxmox VE sur bare-metal, isolation des services en VMs dédiées
-3. **Hybride maîtrisé** — Active Directory on-premise, messagerie et collaboration via Microsoft 365
+3. **Hybride maîtrisé** — Active Directory on-premise répliqué dans le cloud, messagerie et collaboration via Microsoft 365
 4. **Défense en profondeur** — segmentation VLAN, pare-feu, VPN modernes, sauvegardes hors site
-5. **Budget maîtrisé** — options économiques priorisées (Proxmox open-source, réutilisation du matériel existant si possible) ; 2 à 3 devis comparatifs à présenter
-
 ---
 
 ## 2.2 Vue d'ensemble de l'architecture cible
