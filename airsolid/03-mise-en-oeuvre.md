@@ -77,9 +77,9 @@ zpool create -f vm-data raidz nvme0n1 nvme1n1 nvme2n1 nvme3n1
 |---|---|---|---|
 | 1-2 | 99 | 10, 20, 30 | SRV1 (uplink trunk) |
 | 3-4 | 99 | 10, 20, 30 | SRV2 (uplink trunk) |
-| 5-6 | — | — | Pare-feu OPNsense (trunk) |
-| 7-20 | 20 | — | Postes bureautique |
-| 21-24 | 30 | — | Postes Atelier SAV |
+| 5-6 | — | — | Pare-feu Sophos (trunk) |
+| 7-20 | 20 | — | Postes utilisateurs |
+| 21-24 | 30 | — | Postes Atelier |
 
 ### 3.3.2 Bridges Proxmox (fichier `/etc/network/interfaces` sur SRV1)
 
@@ -97,7 +97,7 @@ iface vmbr0 inet manual
     bridge-vlan-aware yes
     bridge-vids 2-4094
 
-# Interface Management Proxmox (VLAN 99)
+# Interface Admin (VLAN 99)
 auto vmbr0.99
 iface vmbr0.99 inet static
     address 10.0.99.11/24
@@ -106,12 +106,12 @@ iface vmbr0.99 inet static
 
 Les VMs sont attachées à `vmbr0` avec leur VLAN respectif configuré dans Proxmox (ex: VM-AD → VLAN 10).
 
-### 3.3.3 Pare-feu OPNsense
+### 3.3.3 Pare-feu Sophos
 
-Interfaces OPNsense :
+Interfaces Sophos :
 - `WAN` — IP publique FAI (interface vers internet)
 - `VLAN10` (Serveurs) — 10.0.10.1/24
-- `VLAN20` (Bureau) — 10.0.20.1/24
+- `VLAN20` (Utilisateurs) — 10.0.20.1/24
 - `VLAN30` (SAV) — 10.0.30.1/24
 - `VLAN99` (Management) — 10.0.99.1/24
 
@@ -119,11 +119,11 @@ Règles de filtrage principales :
 
 | Source | Destination | Service | Action | Justification |
 |---|---|---|---|---|
-| VLAN20 | VLAN10 | TCP 443 (HTTPS ERP) | ALLOW | Accès ERP bureaux |
+| VLAN20 | VLAN10 | TCP 443 (HTTPS ERP) | ALLOW | Accès ERP Utilisateurs |
 | VLAN20 | VLAN10 | TCP 445, 139 (SMB) | ALLOW | Partages fichiers |
 | VLAN20 | VLAN10 | TCP 389, 636 (LDAP/S) | ALLOW | Authentification AD |
 | VLAN30 | VLAN10 | TCP 443, 445, 389 | ALLOW | Atelier SAV même accès |
-| VLAN20 | VLAN30 | Any | DENY | Isolation bureau/atelier |
+| VLAN20 | VLAN30 | Any | DENY | Isolation Utilisateurs/atelier |
 | Any | VLAN99 | Any | DENY | Sauf IP whitelist prestataire |
 | VLAN10 | Internet | TCP 443, 22 | ALLOW | Azure Backup, mises à jour |
 | Any | Internet | TCP 443 | ALLOW | Navigation web contrôlée |
@@ -177,7 +177,7 @@ airsolid.local
 │   ├── OU=Administration
 │   └── OU=SAV
 ├── OU=Postes
-│   ├── OU=Bureau
+│   ├── OU=Utilisateurs
 │   └── OU=Atelier
 └── OU=ServiceAccounts
 ```
@@ -260,8 +260,8 @@ Services supervisés :
 L'entretien 1 a confirmé **30 collaborateurs en télétravail** nécessitant un accès VPN. Chaque utilisateur reçoit un fichier de configuration WireGuard individuel.
 
 ```bash
-# Sur OPNsense : plugin os-wireguard
-# Clé serveur générée depuis l'interface OPNsense → VPN → WireGuard
+# Sur Sophos : plugin os-wireguard
+# Clé serveur générée depuis l'interface Sophos → VPN → WireGuard
 
 # Configuration type pour un commercial nomade (fichier client) :
 [Interface]
@@ -276,7 +276,7 @@ Endpoint = vpn.airsolid.fr:51820
 PersistentKeepalive = 25
 ```
 
-Les commerciaux nomades accèdent à l'ERP et aux fichiers via le tunnel WireGuard comme s'ils étaient au bureau, avec authentification AD intacte.
+Les commerciaux nomades accèdent à l'ERP et aux fichiers via le tunnel WireGuard comme s'ils étaient au Utilisateurs, avec authentification AD intacte.
 
 ---
 
