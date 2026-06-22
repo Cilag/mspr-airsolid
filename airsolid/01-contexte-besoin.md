@@ -96,36 +96,7 @@ La direction d'AIRSOLID a formulé les exigences suivantes, par ordre de priorit
 
 ---
 
-## 1.5 Contraintes budgétaires
-
-**Contexte financier** : chiffre d'affaires estimé à **10–15 M€**, ce qui place AIRSOLID dans la catégorie PME avec des contraintes d'investissement IT significatives.
-
-Le client a confirmé l'**absence de budget dédié** à l'informatique. La direction demande **2 à 3 devis** comparatifs avant toute décision. La contrainte budgétaire est réelle : la proposition doit être économique et justifiée.
-
-Les orientations implicites restent :
-- **Licences logicielles** : préférence pour les solutions open-source ou incluses dans les licences Microsoft déjà acquises
-- **Coût d'exploitation** : OPEX mensuel maîtrisé (pas de solution full-cloud à coût variable imprévisible)
-- **Prestataire unique** : externalisation de la gestion à un seul prestataire pour simplifier la responsabilité
-
-### Ordres de grandeur budgétaires (à présenter dans les devis)
-
-Les estimations ci-dessous constituent des fourchettes indicatives à soumettre dans le cadre des 2 à 3 devis comparatifs demandés par la direction. Elles ne constituent pas un budget validé.
-
-| Poste | Estimation (HT) |
-|---|---|
-| 2x serveurs physiques (Dell R550 ou équivalent) | 12 000 – 18 000 € |
-| Switch manageable 24 ports (Cisco/HP) | 800 – 1 500 € |
-| Licences Windows Server 2022 (2x Standard) | 2 000 – 3 000 € |
-| Licences Windows Server CAL (80 users) | 2 000 – 3 000 € |
-| Prestations migration + configuration | 5 000 – 8 000 € |
-| Abonnement Azure Backup (stockage 1 TB/an) | ~600 €/an |
-| **Total CAPEX indicatif** | **~22 000 – 34 000 €** |
-
-> Ces montants sont à mettre en regard de la perte de chiffre d'affaires de 2 jours (estimée à plusieurs dizaines de milliers d'euros) et du risque de perte définitive de données sans sauvegarde. Ils seront affinés et présentés sous forme de devis comparatifs.
-
----
-
-## 1.6 Synthèse du besoin
+## 1.5 Synthèse du besoin
 
 ```
 Situation actuelle → Problème → Besoin
