@@ -1,0 +1,10 @@
+---
+samba_realm: "AIRSOLID.LOCAL"
+samba_domain: "AIRSOLID"
+samba_adminpass: "Admin@Airsolid1!"
+samba_server_role: "dc"
+samba_dns_backend: "SAMBA_INTERNAL"
+
+dc_hostname: "airsolid-dc01"
+dc_ip_vmbr99: "10.99.0.1"
+dc_ip_vmbr99_prefix: "24"
