@@ -1,0 +1,63 @@
+#!/bin/bash
+# Script de sauvegarde BorgBackup — {{ inventory_hostname }}
+# Généré par Ansible — ne pas modifier manuellement
+set -euo pipefail
+
+export BORG_REPO="{{ borg_repo }}"
+export BORG_RSH="ssh -i /etc/borg/id_ed25519 -o StrictHostKeyChecking=yes"
+# La passphrase est lue depuis le fichier sécurisé
+export BORG_PASSPHRASE="$(cat /etc/borg/passphrase 2>/dev/null || echo '')"
+
+LOG_FILE="/var/log/borg-backup.log"
+HOSTNAME="{{ inventory_hostname }}"
+DATE="$(date '+%Y-%m-%dT%H:%M:%S')"
+ARCHIVE="${HOSTNAME}-${DATE}"
+
+echo "=== Sauvegarde BorgBackup ${DATE} ===" | tee -a "$LOG_FILE"
+
+# --- Initialisation du dépôt si absent ---
+if ! borg list "${BORG_REPO}" > /dev/null 2>&1; then
+    echo "Initialisation du dépôt ${BORG_REPO}..." | tee -a "$LOG_FILE"
+    borg init --encryption="{{ borg_encryption }}" "${BORG_REPO}" 2>&1 | tee -a "$LOG_FILE"
+fi
+
+# --- Création de l'archive ---
+echo "Création de l'archive ${ARCHIVE}..." | tee -a "$LOG_FILE"
+borg create \
+    --verbose \
+    --stats \
+    --show-rc \
+    --compression "{{ borg_compression }}" \
+    --exclude-caches \
+{% for pattern in borg_exclude_patterns %}
+    --exclude "{{ pattern }}" \
+{% endfor %}
+    "${BORG_REPO}::${ARCHIVE}" \
+{% for path in borg_backup_paths %}
+    "{{ path }}" \
+{% endfor %}
+    2>&1 | tee -a "$LOG_FILE"
+
+BACKUP_EXIT=$?
+
+# --- Pruning selon la politique de rétention ---
+echo "Application de la politique de rétention..." | tee -a "$LOG_FILE"
+borg prune \
+    --verbose \
+    --stats \
+    --show-rc \
+    --glob-archives "${HOSTNAME}-*" \
+    --keep-daily {{ borg_retention.keep_daily }} \
+    --keep-weekly {{ borg_retention.keep_weekly }} \
+    --keep-monthly {{ borg_retention.keep_monthly }} \
+    --keep-yearly {{ borg_retention.keep_yearly }} \
+    "${BORG_REPO}" 2>&1 | tee -a "$LOG_FILE"
+
+PRUNE_EXIT=$?
+
+# --- Compactage du dépôt ---
+borg compact "${BORG_REPO}" 2>&1 | tee -a "$LOG_FILE"
+
+GLOBAL_EXIT=$(( BACKUP_EXIT > PRUNE_EXIT ? BACKUP_EXIT : PRUNE_EXIT ))
+echo "=== Fin sauvegarde (code: ${GLOBAL_EXIT}) ===" | tee -a "$LOG_FILE"
+exit $GLOBAL_EXIT
