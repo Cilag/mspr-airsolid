@@ -1,0 +1,10 @@
+---
+- name: Deploy ERP (Odoo 17) on airsolid-erp
+  hosts: airsolid_erp
+  become: true
+  vars:
+    postgres_password: "{{ postgres_password | default(lookup('env', 'POSTGRES_PASSWORD')) }}"
+    erp_dir: /opt/erp
+    compose_file: "{{ erp_dir }}/docker-compose.yml"
+  roles:
+    - erp
