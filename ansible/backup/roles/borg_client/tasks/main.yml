@@ -1,0 +1,84 @@
+---
+- name: Mettre à jour la liste des paquets
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Installer BorgBackup sur le client
+  ansible.builtin.apt:
+    name:
+      - borgbackup
+      - openssh-client
+    state: present
+
+- name: Créer le répertoire de configuration Borg
+  ansible.builtin.file:
+    path: /etc/borg
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Générer la paire de clés SSH pour l'accès au serveur Borg
+  ansible.builtin.openssh_keypair:
+    path: /etc/borg/id_ed25519
+    type: ed25519
+    comment: "borg-client-{{ inventory_hostname }}"
+    state: present
+  register: borg_ssh_key
+
+- name: Afficher la clé publique à ajouter sur le serveur
+  ansible.builtin.debug:
+    msg:
+      - "Clé publique pour {{ inventory_hostname }} (à ajouter sur VM203):"
+      - "{{ borg_ssh_key.public_key }}"
+  when: borg_ssh_key.changed
+
+- name: Configurer known_hosts pour le serveur Borg (éviter prompt SSH)
+  ansible.builtin.known_hosts:
+    name: "{{ backup_server_ip }}"
+    key: "{{ lookup('pipe', 'ssh-keyscan -t ed25519 ' + backup_server_ip + ' 2>/dev/null || echo \"\"') }}"
+    path: /root/.ssh/known_hosts
+    state: present
+  ignore_errors: true
+
+- name: Déployer le script de sauvegarde
+  ansible.builtin.template:
+    src: borg-backup.sh.j2
+    dest: /usr/local/bin/borg-backup.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Déployer le service systemd pour la sauvegarde
+  ansible.builtin.template:
+    src: borg-backup.service.j2
+    dest: /etc/systemd/system/borg-backup.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger systemd
+
+- name: Déployer le timer systemd pour la sauvegarde quotidienne
+  ansible.builtin.template:
+    src: borg-backup.timer.j2
+    dest: /etc/systemd/system/borg-backup.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger systemd
+
+- name: Activer et démarrer le timer de sauvegarde
+  ansible.builtin.systemd:
+    name: borg-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Afficher le résumé de la configuration client
+  ansible.builtin.debug:
+    msg:
+      - "Client BorgBackup configuré: {{ inventory_hostname }}"
+      - "Dépôt cible: {{ borg_repo }}"
+      - "Sauvegarde quotidienne: {{ borg_backup_hour }}h{{ borg_backup_minute }}"
+      - "Rétention: {{ borg_retention.keep_daily }}j / {{ borg_retention.keep_weekly }}sem / {{ borg_retention.keep_monthly }}mois / {{ borg_retention.keep_yearly }}ans"

@@ -1,0 +1,29 @@
+#!/bin/bash
+# Vérification hebdomadaire de la cohérence des dépôts BorgBackup
+set -euo pipefail
+
+REPOS_DIR="{{ borg_repos_dir }}"
+LOG_FILE="/var/log/borg-check.log"
+CLIENTS=(vm201 vm202)
+
+echo "=== Vérification BorgBackup $(date '+%Y-%m-%d %H:%M:%S') ===" | tee -a "$LOG_FILE"
+
+EXIT_CODE=0
+for CLIENT in "${CLIENTS[@]}"; do
+    REPO="${REPOS_DIR}/${CLIENT}"
+    if [ -d "$REPO" ]; then
+        echo "Vérification dépôt ${CLIENT}..." | tee -a "$LOG_FILE"
+        if BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=no \
+           borg check --verbose "${REPO}" >> "$LOG_FILE" 2>&1; then
+            echo "[OK] ${CLIENT}" | tee -a "$LOG_FILE"
+        else
+            echo "[ERREUR] ${CLIENT} — vérification échouée" | tee -a "$LOG_FILE"
+            EXIT_CODE=1
+        fi
+    else
+        echo "[WARN] Dépôt ${CLIENT} non initialisé (${REPO} absent)" | tee -a "$LOG_FILE"
+    fi
+done
+
+echo "=== Fin vérification (code: ${EXIT_CODE}) ===" | tee -a "$LOG_FILE"
+exit $EXIT_CODE
