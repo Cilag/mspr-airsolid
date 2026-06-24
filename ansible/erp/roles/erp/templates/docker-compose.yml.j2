@@ -1,0 +1,39 @@
+---
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: odoo
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - odoo_db:/var/lib/postgresql/data
+    networks:
+      - odoo_net
+
+  odoo:
+    image: odoo:17
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      HOST: db
+      PORT: 5432
+      USER: odoo
+      PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - odoo_data:/var/lib/odoo
+      - odoo_addons:/mnt/extra-addons
+    ports:
+      - "8069:8069"
+    networks:
+      - odoo_net
+
+volumes:
+  odoo_db:
+  odoo_data:
+  odoo_addons:
+
+networks:
+  odoo_net:
