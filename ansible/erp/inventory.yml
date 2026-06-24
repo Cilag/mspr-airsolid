@@ -1,0 +1,9 @@
+all:
+  children:
+    erp:
+      hosts:
+        airsolid-erp:
+          ansible_host: 192.168.99.202
+          ansible_user: ansible
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+          ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ProxyJump=root@192.168.1.100"
